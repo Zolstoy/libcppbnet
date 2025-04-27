@@ -1,0 +1,72 @@
+name: Build & Test
+'on':
+  push:
+    branches: dev
+
+jobs:
+  build-test:
+    env:
+      BOOST_VERSION: 1.87.0
+    strategy:
+      matrix:
+        os:
+          # - ubuntu-22.04
+          # - windows-2022
+          - macos-15
+        case:
+          - case_01
+
+    runs-on: ${{ matrix.os }}
+    steps:
+    - uses: actions/checkout@v2
+
+    - uses: ilammy/msvc-dev-cmd@v1
+      if: matrix.os == 'windows-2022'
+
+    - uses: Bacondish2023/setup-googletest@v1
+      with:
+        tag: v1.14.0
+
+    - name: Install boost Windows
+      if: matrix.os == 'windows-2022'
+      uses: MarkusJx/install-boost@v2.5.0
+      with:
+        boost_version: ${{ env.BOOST_VERSION }}
+        platform_version: 2022
+        toolset: msvc
+        cache: false
+
+    - name: Install boost Linux
+      if: matrix.os == 'ubuntu-22.04'
+      uses: MarkusJx/install-boost@v2.5.0
+      with:
+        boost_version: ${{ env.BOOST_VERSION }}
+        platform_version: 22.04
+        toolset: gcc
+        cache: false
+
+    - name: Install boost MacOS
+      id: install-boost
+      if: matrix.os == 'macos-15'
+      uses: MarkusJx/install-boost@v2.5.0
+      with:
+        boost_version: ${{ env.BOOST_VERSION }}
+        platform_version: 15
+        toolset: clang
+        arch: aarch64
+        link: static+shared
+
+    - uses: actions/setup-python@v5.4.0
+      with:
+        python-version: 3.9
+
+    - uses: BSFishy/meson-build@v1.0.3
+      env:
+        BOOST_ROOT: ${{ steps.install-boost.outputs.BOOST_ROOT }}
+      with:
+        action: test
+        directory: build
+        setup-options: --backend ninja --buildtype debug
+        options: --verbose
+        meson-version: 0.61.2
+        ninja-version: 1.10.2
